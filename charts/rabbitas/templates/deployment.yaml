@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: autoscaler
+  name: autoscaler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: autoscaler
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: autoscaler
+    spec:
+      serviceAccountName: rabbitas
+      containers:
+      - command:
+        - /bin/sh
+        - -c
+        - |
+          while true; do
+            echo Show info...
+            rabbitmqadmin list queues -u $USERNAME -p $PASSWORD --host $HOST --port 15672
+            kubectl get deployment
+            sleep 1
+            msgcount=$(rabbitmqadmin list queues -p / -u $USERNAME -p $PASSWORD --host $HOST --port 15672 | grep demoq | cut -d "|" -f 3)
+            echo "Message queue depth is [ $msgcount ]"
+            sleep 1
+            if [ "$msgcount" -gt 100 ]; then
+              echo "Scale to 10"
+              kubectl scale deployment/consumer --replicas=10
+            elif [ "$msgcount" -gt 50 ]; then
+              echo "Scale to 5"
+              kubectl scale deployment/consumer --replicas=5
+            elif [ "$msgcount" -gt 0 ]; then
+              echo "Scale to 1"
+              kubectl scale deployment/consumer --replicas=1
+            else
+              echo "Scale to 0"
+              kubectl scale deployment/consumer --replicas=0
+            fi
+            sleep 30
+          done
+
+        image: ghcr.io/tonygilkerson/rabbitas:v1
+        name: autoscaler
+        env:
+        - name: USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: zoomq-default-user
+              key: username
+        - name: PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: zoomq-default-user
+              key: password
+        - name: HOST
+          valueFrom:
+            secretKeyRef:
+              name: zoomq-default-user
+              key: host
