@@ -7,9 +7,9 @@ A autoscaler POC that will scale a deployment based on queue depth
 Run the following to build and publish the rabbit auto-scaler container image:
 
 ```sh
-podman build -t ghcr.io/tonygilkerson/rabbitas:v1 .
+podman build -t ghcr.io/tonygilkerson/rabbitas:v1.1 .
 
-podman push ghcr.io/tonygilkerson/rabbitas:v1
+podman push ghcr.io/tonygilkerson/rabbitas:v1.1
 ```
 
 ## Rabbit Secret
@@ -34,8 +34,26 @@ data:
   username: default_user_Isn6VzzWwxRunYemAd1=
 ```
 
+## Rabbit UI
+
+```sh
+kubectl -n rabbitmq port-forward svc/zoomq 15672:15672
+```
+
 ## Deploy App
 
 ```sh
 helm upgrade rabbitas charts/rabbitas -n rabbitmq -i
 ```
+
+## Dev
+
+```sh
+source .env
+config set-context --current --namespace=rabbitmq
+kubectl -n rabbitmq port-forward svc/zoomq 5672:5672
+
+go run .
+```
+
+

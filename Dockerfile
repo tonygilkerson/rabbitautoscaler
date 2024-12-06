@@ -1,14 +1,20 @@
-FROM bitnami/kubectl:latest
+FROM golang:1.23 AS builder
 
-USER root
+WORKDIR /app
 
-# Add any additional packages or configurations here
-RUN apt update && apt -y install python3 wget
-RUN wget https://raw.githubusercontent.com/rabbitmq/rabbitmq-server/v3.12.x/deps/rabbitmq_management/bin/rabbitmqadmin
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN chmod +x rabbitmqadmin
-RUN mv ./rabbitmqadmin /usr/bin/
+COPY . .
 
-USER 1001
+# Build the Go application
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/rabbitautoscaler
 
-CMD ["/bin/bash"]
+# Stage 2: Run
+FROM alpine:latest
+
+WORKDIR /app
+
+COPY --from=builder /app/rabbitautoscaler .
+
+CMD ["./rabbitautoscaler"]
